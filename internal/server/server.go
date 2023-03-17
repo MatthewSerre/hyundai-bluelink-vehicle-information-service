@@ -22,8 +22,8 @@ type Server struct {
 type Auth struct {
 	Username   string
 	PIN        string
-	JWT_Token  string
-	JWT_Expiry int64
+	JWTToken  string
+	JWTExpiry int64
 }
 
 type Vehicle struct {
@@ -37,30 +37,30 @@ func main() {
 	lis, err := net.Listen("tcp", addr)
 
 	if err != nil {
-		log.Fatalf("Failed to listen on: %v\n", err)
+		log.Fatalf("failed to listen on: %v\n", err)
 	}
 
-	log.Printf("Listening on %s\n", addr)
+	log.Printf("vehicle information server listening on %s\n", addr)
 
 	s := grpc.NewServer()
 	infov1.RegisterInformationServiceServer(s, &Server{})
 
 	if err = s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v\n", err)
+		log.Fatalf("failed to serve: %v\n", err)
 	}
 }
 
 func (s *Server) GetVehicleInfo(context context.Context, request *infov1.VehicleInfoRequest) (*infov1.VehicleInfoResponse, error) {
-	log.Println("Processing vehicle information request...")
+	log.Println("processing vehicle information request")
 
-	info, err := getVehicleInfo(Auth{Username: request.Username, JWT_Token: request.JwtToken, PIN: request.Pin, JWT_Expiry: request.JwtExpiry})
+	info, err := getVehicleInfo(Auth{Username: request.Username, JWTToken: request.JwtToken, PIN: request.Pin, JWTExpiry: request.JwtExpiry})
 
 	if err != nil {
 		log.Println("error obtaining vehicle information:", err)
 		return &infov1.VehicleInfoResponse{}, err
 	}
 
-	log.Println("Vehicle information request processed successfully!")
+	log.Println("vehicle information request processed successfully")
 
 	return &infov1.VehicleInfoResponse{
 		RegistrationId: info.RegistrationID,
@@ -88,7 +88,7 @@ func getVehicleInfo(auth Auth) (Vehicle, error) {
 
 	q := req.URL.Query()
 	q.Add("username", auth.Username)
-	q.Add("token", auth.JWT_Token)
+	q.Add("token", auth.JWTToken)
 	q.Add("service", "getOwnerInfoService")
 	q.Add("url", "https://owners.hyundaiusa.com/us/en/page/dashboard.html")
 	req.URL.RawQuery = q.Encode()
@@ -124,7 +124,7 @@ func getVehicleInfo(auth Auth) (Vehicle, error) {
 
 	vehicles := ownerInfo.ResponseString.OwnersVehiclesInfo
 
-	vehicle := Vehicle{ RegistrationID: vehicles[0].RegistrationID, VIN: vehicles[0].VinNumber, Generation: "", Mileage: vehicles[0].Mileage }
+	vehicle := Vehicle{ RegistrationID: vehicles[0].RegistrationID, VIN: vehicles[0].VinNumber, Generation: vehicles[0].IsGen2, Mileage: vehicles[0].Mileage }
 
 	return vehicle, nil
 }
@@ -139,5 +139,5 @@ func setReqHeaders(req *http.Request, auth Auth) {
 	req.Header.Add("Host", "owners.hyundaiusa.com")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 	req.Header.Add("Origin", "https://owners.hyundaiusa.com")
-	req.Header.Add("Cookie", "jwt_token=" + auth.JWT_Token + "; s_name=" + auth.Username)
+	req.Header.Add("Cookie", "jwt_token=" + auth.JWTToken + "; s_name=" + auth.Username)
 }
